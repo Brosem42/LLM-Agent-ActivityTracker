@@ -46,7 +46,7 @@ A python app for both the LLM + SLM for tracking deparment Activty Spend Analysi
 ## Local Dev Run
 
 ```bash
-cd buildfunctions_agent
+cd LLM-Agent-ActivityTracker
 pip install -r requirements.txt
 
 # fastAPI server run
