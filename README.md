@@ -39,3 +39,15 @@ A python app for both the LLM + SLM for tracking deparment Activty Spend Analysi
 
 - `app/main.py`: - FastAPI, `chat` endpoint for user interaction.
 - `app/agent.py`: - Agent class that handle the parsing for the user intent and calls the LLM/SLM tools.
+- `app/models.py`: - pydantic models and domain objects
+- `app/analytics.py`: - Financial analytics, 60/40 operational report, includes trend and anomaly detection.
+- `app/sandbox.py`: - Restricted python sandbox for untrusted LLMs/SLMs actions.
+
+## Local Dev Run
+
+```bash
+cd buildfunctions_agent
+pip install -r requirements.txt
+
+# fastAPI server run
+uvicorn app.main:app --reload
