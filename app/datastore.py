@@ -30,4 +30,26 @@ class EncryptedStore:
         data = json.loads(raw.decode('utf-8'))
         return [Transaction(**item) for item in data]
     
+
+class TransactionRepo:
+    def __init__(self, store: EncryptedStore):
+        self._store = store
+        self._txns = List[Transaction] = self._store.load_transactions()
+        self._next_id = (max((t.id for t in self._txns), default=0) + 1) if self._txns else 1
+
+    def add_transaction(self) -> List[Transaction]:
+        return list(self._txns)
+    
+    def add_transaction(self, txn: Transaction) -> Transaction:
+        txn.id = self._next_id
+        self._next_id += 1
+        self._txns.append(txn)
+        self._store.save_transactions(self._txns)
+        return txn
+    
+    def clear(self) -> None:
+        self._txns = []
+        self._store.save_transactions(self._txns)
+        self._next_id = 1
+
     
