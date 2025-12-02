@@ -15,3 +15,8 @@ def compute_fin_summary(txns: List[Transaction]) -> FinancialSummary:
         per_service[t.service_name] += t.amount
     currency = txns[0].currency if txns else "USD"
     return FinancialSummary(total_spend=total, per_microservice=dict(per_service), currency=currency)
+
+def apply_6040_protocol(total_spend: float) -> Tuple[float, float]:
+    operational_expenses = total_spend * 0.6 
+    budget_runway = total_spend * 0.4 
+    return operational_expenses, budget_runway
