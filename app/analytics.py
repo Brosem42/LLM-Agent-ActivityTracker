@@ -1,12 +1,12 @@
 from __future__ import annotations
 from collections import defaultdict
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 #imports
 import numpy as np #type: ignore
 import pandas as pd #type: ignore
-
-from .models import Transaction, FinancialSummary
+import matplotlib.pyplot as plt #type: ignore
+from .models import Transaction, FinancialSummary, AnomalyCalc
 
 def compute_fin_summary(txns: List[Transaction]) -> FinancialSummary:
     total = sum(t.amount for t in txns)
@@ -48,18 +48,39 @@ def detect_anomalies(txns: List[Transaction]) -> AnomalyCalc: # pyright: ignore[
     df["day"] = df["timestamp"].dt.floor("D")
     daily = df.groupby("day")["amount"].sum().reset_index()
     amounts = daily["amount"].values.astype(float)
-    mean = daily["amount"].values.astype(float)
+    mean = amounts.mean()
     std = amounts.std() if amounts.std() > 0 else 1.0
     z_score = (amounts - mean) / std
 
     anomaly_days = set(daily["day"][np.abs(z_score) > 2].dt.to_pydatetime())
     anomalies: List[Transaction] = [
-        t for t in txns if t.timestamp.replace(hour=0, minute=0, second=0, microsecond=0) in anomaly_days
+        t for t in txns 
+        if t.timestamp.replace(hour=0, minute=0, second=0, microsecond=0) in anomaly_days
     ]
 
     details = (
-        f"Detected {len(anomaly_days)} anomaly days(s) based on z-score >i 2.\n",
+        f"Detected {len(anomaly_days)} anomaly days(s) based on z-score > 2.\n",
         f"Mean daily spend: {mean:.2f}, std: {std:.2f}."
     )
 
     return AnomalyCalc(anomalies=anomalies, details=details) # type: ignore
+
+#plotting daily spend trends
+def plot_daily_spend_chart(txns: List[Transaction], path: str = "daily_spend.png") -> Optional[str]:
+    if not txns:
+        return None
+    
+    df = transactions_to_df(txns)
+    df["day"] = df["timestamp"].dt.floor("D")
+    daily = df.groupby("day")["amount"].sum().reset_index()
+
+    plt.figure()
+    plt.plot(daily["day"], daily["amoount"], marker="o")
+    plt.xlabel("Day")
+    plt.ylabel("Total spend")
+    plt.title("Daily spend trend over time")
+    plt.tight_layout()
+    plt.savefig(path)
+    plt.close()
+
+    return path
