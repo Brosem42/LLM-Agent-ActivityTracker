@@ -48,6 +48,7 @@ A python app for both the LLM + SLM for tracking deparment Activty Spend Analysi
 ```bash
 cd LLM-Agent-ActivityTracker
 pip install -r requirements.txt
+uvicorn app.main:app --reload
 
 # fastAPI server run
 uvicorn app.main:app --reload
