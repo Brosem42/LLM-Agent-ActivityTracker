@@ -149,4 +149,82 @@ class FinAgent:
     """
 
         context = {"transactions": base_result.anomalies}
-        slm_locals = run_untrusted_slm()
+        slm_locals = run_untrusted_slm(run_untrusted_slm, context)
+        scores = slm_locals.get("scores", [])
+        flags = slm_locals.get("flags", [])
+
+        flagged = [
+            (txn, score) # type:ignore
+            for txn, score, flag in zip(base_result.anomalies, scores, flags)
+            if flag
+        ]
+
+        if not flagged:
+            return base_result.details + "\nSLM rule did not flag any specific transactions."
+        
+        lines = []
+        for txn, score in flagged:
+            lines.append(
+                f"- #{txn.id} {txn.service_name} {txn.amount:.2f} {txn.currency}"
+                f"on {txn.timestamp.date()} (score={score:.2f})"
+            )
+
+        return (
+            base_result.details
+            + "\n\nSLM anomaly refinement flagged the following high-impact transactions:\n"
+            + "\n".join(lines)
+        )
+    
+    def _handle_llm_analysis(self) -> str:
+        txns = self.repo.transactions
+        if not txns:
+            return "No transactions available yet to analyze."
+        
+        llm_generated_code = """
+per_app = {}
+for t in transactions:
+    per_app[t.app_name] = per_app.get(t.app_name, 0) + t.amount
+
+sorted_apps = sorted(per_app.items(), key=lambda kv: kv[1], reverse=True)
+top_app, top_amount = sorted_apps[0] if sorted_apps else (None, 0.0)
+total = sum(per_app.values())
+
+result = {
+    'top_app': top_app,
+    'top_app_amount': float(top_amount),
+    'total': float(total),
+    'per_app': per_app,
+}
+"""
+        context = {"transactions": txns}
+        locals_after = run_untrusted_llm(llm_generated_code, context)
+        result = locals_after.get("result", {})
+
+        top_service = result.get("top_service")
+        top_amount = result.get("top_service_amount", 0.0)
+        total = result.get("total", 0.0)
+        per_service_app = result.get("per_service", {})
+
+        lines = [
+            "Here is an analysis report of the operational costs for your team:",
+            f"-Total spend (all microservices): {total:.2f} USD"
+        ]
+
+        if top_service:
+            lines.append(
+                f"-Most expensive microservice: {top_service} with {top_amount:.2f} USD"
+            )
+        
+        if per_service_app:
+            lines.append("-Breakdown by app:")
+            for app, amount in sorted(
+                per_service_app.items(), key=lambda kv:kv[1], reverse=True
+            ):
+                lines.append(f"• {app}: {amount:.2f} USD")
+
+        lines.append(
+            "\n(Analysis was produced by an untrusted LLM code snippet running "
+            "inside a restricted sandbox.)"
+        )
+
+        return "\n".join(lines)
